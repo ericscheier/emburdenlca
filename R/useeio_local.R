@@ -33,11 +33,14 @@ useeio_cache_dir <- function() {
 #' Load USEEIO v2 sector-emergy and GHG factors (local)
 #'
 #' Returns a per-sector factor table (411 NAICS BEA detail sectors by
-#' default; summary 71-sector table on request). Factor columns include
-#' direct and total GHG intensity (kg CO2e / $) and emergy per $
-#' (sej / $). Pulls from the local cache; populates via the upstream
-#' `useeior` package or an EPA CSV release the first time the function is
-#' called.
+#' default; summary 71-sector table on request). The default factor set
+#' is CO2e (direct + total) plus solar emergy, matching the shape every
+#' downstream caller expects. **Additional TRACI 2.1 impact categories
+#' (acidification, eutrophication, PM2.5-eq, water, land, etc.) can be
+#' pulled by passing their row names via `indicators`** — those columns
+#' are added to the returned tibble with slugified names (lower-case,
+#' underscores, `_total` suffix). The cache key varies with the
+#' indicator set so a bigger pull does not stomp on the default cache.
 #'
 #' When `useeior` is not installed and no cached table is present, prints
 #' a one-line install instruction and errors — avoids silent failure.
@@ -45,21 +48,38 @@ useeio_cache_dir <- function() {
 #' @param level `"detail"` (default, 411 sectors) or `"summary"` (71).
 #' @param force_refresh Ignore cache, rebuild factors (default `FALSE`).
 #' @param model Which USEEIO model release to use (default `"USEEIOv2.0.1-411"`).
+#' @param indicators Optional character vector of extra USEEIO N-matrix
+#'   row names to pull. Pass exactly as they appear in `rownames(m$N)`
+#'   (e.g. `"Acidification Potential"`, `"Particulate Matter 2.5"`,
+#'   `"Water Use"`). Default `NULL` preserves historical return shape.
 #' @return A tibble with columns `sector_code`, `sector_name`,
 #'   `co2e_total`, `co2e_direct`, `emergy_total_sej_per_dollar`,
-#'   `model`, `level`.
+#'   `model`, `level`, plus one `<slug>_total` column per entry in
+#'   `indicators`.
 #' @examples
 #' \dontrun{
 #' tbl <- load_useeio_v2()
 #' head(tbl)
+#' traci <- load_useeio_v2(indicators = c("Acidification Potential",
+#'                                         "Particulate Matter 2.5",
+#'                                         "Water Use"))
+#' head(traci)
 #' }
 #' @export
 load_useeio_v2 <- function(level = c("detail", "summary"),
                              force_refresh = FALSE,
-                             model = "USEEIOv2.0.1-411") {
+                             model = "USEEIOv2.0.1-411",
+                             indicators = NULL) {
   level <- match.arg(level)
+  # Cache key varies with the indicator set so an extended pull does not
+  # overwrite the default (CO2e + emergy) cache a downstream caller may
+  # still be reading. Default `indicators = NULL` → legacy cache name.
+  cache_suffix <- if (is.null(indicators)) "" else {
+    paste0("_", substr(digest::digest(sort(indicators)), 1, 8))
+  }
   cache_path <- file.path(useeio_cache_dir(),
-                           paste0(model, "_", level, "_factors.rds"))
+                           paste0(model, "_", level, "_factors",
+                                   cache_suffix, ".rds"))
 
   if (!force_refresh && file.exists(cache_path)) {
     return(readRDS(cache_path))
@@ -100,6 +120,24 @@ load_useeio_v2 <- function(level = c("detail", "summary"),
     model = model,
     level = level
   )
+
+  # Extra TRACI rows: for each named indicator in `indicators`, pull
+  # the row from m$N and attach as a column. Unknown indicator → warn
+  # and fill NA, so a typo doesn't blow up a full rebuild.
+  if (!is.null(indicators) && length(indicators) > 0) {
+    for (ind in indicators) {
+      slug <- paste0(gsub("[^A-Za-z0-9]+", "_",
+                           tolower(trimws(ind))), "_total")
+      if (ind %in% rownames(m$N)) {
+        tbl[[slug]] <- as.numeric(m$N[ind, , drop = TRUE])
+      } else {
+        warning(sprintf(
+          "USEEIO indicator '%s' not found in m$N — column '%s' filled NA. Available rows: %s",
+          ind, slug, paste(head(rownames(m$N), 15), collapse = ", ")))
+        tbl[[slug]] <- NA_real_
+      }
+    }
+  }
 
   if (level == "summary") {
     tbl <- tbl |> dplyr::group_by(sector_code = substr(sector_code, 1, 2)) |>
