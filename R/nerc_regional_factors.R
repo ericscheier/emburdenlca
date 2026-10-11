@@ -1,0 +1,104 @@
+#' NERC-regional LCA factors (Task #3 of the LCA-DEEPENING backlog).
+#'
+#' @description
+#' Grid-electricity LCA factors by NERC region, aggregated from the
+#' eGRID subregion × year panel (`data/egrid_subregion_year_2009_2024.csv`
+#' in the net_energy_equity repo). The subregion→NERC map lives at the
+#' top of this file; aggregation uses `total_gen_mwh` as weight so a
+#' region's factor is the generation-weighted mean of its subregions'
+#' carbon intensity.
+#'
+#' Why this exists: before this helper, every LCA pathway in
+#' emburdenlca used either national (USEEIO) or country-level
+#' (EXIOBASE) grid intensities. The DC-E2C3 pipeline's 4,000×
+#' variation in health damages across NERC regions was invisible to
+#' the household-side HEII attach because grid intensity was national.
+#' This closes that gap.
+#'
+#' @param data_root Path to the net_energy_equity data directory
+#'   that holds the eGRID subregion panel + the nerc crosswalk.
+#'   Defaults to `~/Documents/apps/net_energy_equity/data`.
+#' @return A tibble with columns `nerc_region, year,
+#'   co2e_total_kg_mwh, coal_pct, gas_pct, nuclear_pct,
+#'   renewable_pct, gen_total_mwh`. CO2e is in kg/MWh (eGRID
+#'   publishes lb/MWh; we convert, 1 lb = 0.4536 kg).
+#' @export
+#' @examples
+#' \dontrun{
+#' nerc_grid <- load_nerc_grid_factors()
+#' dplyr::filter(nerc_grid, year == 2024)
+#' }
+load_nerc_grid_factors <- function(
+  data_root = "~/Documents/apps/net_energy_equity/data"
+) {
+  stopifnot(requireNamespace("dplyr", quietly = TRUE),
+            requireNamespace("readr", quietly = TRUE))
+  dir <- path.expand(data_root)
+  subregion_panel_path <- file.path(dir, "egrid_subregion_year_2009_2024.csv")
+  if (!file.exists(subregion_panel_path)) {
+    stop("Missing eGRID subregion panel at ", subregion_panel_path,
+         ". Expected net_energy_equity/data/.")
+  }
+  panel <- readr::read_csv(subregion_panel_path, show_col_types = FALSE)
+
+  # Subregion → NERC map. Prefix encodes the parent NERC for most
+  # codes; the handful of non-prefixed codes are listed explicitly.
+  # ASCC + HICC are NOT NERC regions (Alaska + Hawaii reliability
+  # councils); map to NA and they drop out of the aggregate.
+  sr_to_nerc <- c(
+    SRSO = "SERC", SRMV = "SERC", SRMW = "SERC",
+    SRTV = "SERC", SRVC = "SERC",
+    RFCE = "RFC",  RFCM = "RFC",  RFCW = "RFC",
+    FRCC = "FRCC",
+    NWPP = "WECC", RMPA = "WECC", CAMX = "WECC", AZNM = "WECC",
+    MROW = "MRO",  MROE = "MRO",
+    SPNO = "SPP",  SPSO = "SPP",
+    NYLI = "NPCC", NYCW = "NPCC", NYUP = "NPCC", NEWE = "NPCC",
+    ERCT = "TRE",
+    HIMS = NA_character_, HIOA = NA_character_,
+    AKGD = NA_character_, AKMS = NA_character_,
+    PRMS = NA_character_  # Puerto Rico — not NERC
+  )
+  panel$nerc_region <- unname(sr_to_nerc[panel$subregion])
+  panel <- panel |> dplyr::filter(!is.na(.data$nerc_region),
+                                   !is.na(.data$carbon_intensity_lb_per_mwh),
+                                   !is.na(.data$total_gen_mwh),
+                                   .data$total_gen_mwh > 0)
+  # Generation-weighted means per (nerc_region, year).
+  out <- panel |>
+    dplyr::group_by(.data$nerc_region, .data$year) |>
+    dplyr::summarise(
+      co2e_total_kg_mwh = sum(.data$carbon_intensity_lb_per_mwh *
+                               .data$total_gen_mwh, na.rm = TRUE) /
+                           sum(.data$total_gen_mwh) * 0.4535924,
+      coal_pct      = sum(.data$coal_pct      * .data$total_gen_mwh) /
+                       sum(.data$total_gen_mwh),
+      gas_pct       = sum(.data$gas_pct       * .data$total_gen_mwh) /
+                       sum(.data$total_gen_mwh),
+      nuclear_pct   = sum(.data$nuclear_pct   * .data$total_gen_mwh) /
+                       sum(.data$total_gen_mwh),
+      renewable_pct = sum(.data$renewable_pct * .data$total_gen_mwh) /
+                       sum(.data$total_gen_mwh),
+      gen_total_mwh = sum(.data$total_gen_mwh),
+      .groups = "drop"
+    )
+  out
+}
+
+#' Lookup a NERC region's grid CO2e factor for a given year.
+#'
+#' @param nerc_region 4-letter NERC code (FRCC, MRO, NPCC, RFC, SERC,
+#'   SPP, TRE, WECC).
+#' @param year Numeric year (defaults to latest in the panel).
+#' @param field Which field to return — defaults to
+#'   `"co2e_total_kg_mwh"`.
+#' @return A scalar numeric; NA if the region+year is not covered.
+#' @export
+nerc_grid_factor <- function(nerc_region, year = NULL,
+                              field = "co2e_total_kg_mwh") {
+  tbl <- load_nerc_grid_factors()
+  if (is.null(year)) year <- max(tbl$year, na.rm = TRUE)
+  row <- tbl[tbl$nerc_region == nerc_region & tbl$year == year, ]
+  if (nrow(row) == 0) return(NA_real_)
+  row[[field]]
+}
