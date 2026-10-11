@@ -1,0 +1,5 @@
+workload_type,load_factor_mean,load_factor_p90,flexibility_score,must_run_hours_per_year,storage_hours_per_mw,ramp_rate_mw_per_min,notes_source
+training,0.78,0.98,0.60,2000,0.5,30,"Masanet 2020 + Andrae 2020 — GPU clusters have high short-term ramp during optimizer step changes; load profile shapeable within a batch window."
+inference,0.95,0.99,0.05,8500,0.1,3,"Masanet 2020 — serving traffic is near-flat with diurnal + weekly QPS cycles ~5-20%; must-run for SLA."
+batch,0.45,0.90,0.90,500,0.3,10,"Google 2023 Carbon-Aware Computing report — batch jobs (data pipelines, ML eval, re-indexing) shiftable to curtailment hours."
+crypto,0.90,0.99,0.10,8500,0.1,15,"Cambridge Bitcoin Electricity Consumption Index — ASIC miners near-flat except on economic-shutdown events."
