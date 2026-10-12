@@ -701,7 +701,7 @@ backlog:
 
     **Files.** `R/compute_sizing.R` (append), `inst/extdata/workload_taxonomy.csv` (new).'
   type: feature
-  priority: 5
+  priority: 1
   status: todo
   created_at: '2026-10-11T22:32:13.543212+00:00'
   source: fleet-cli
@@ -721,7 +721,7 @@ backlog:
   - test -f tests/testthat/test-workload-taxonomy.R
   - ./verify.sh --full exits 0
   size: 1
-  state: backlog
+  state: todo
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383127780792
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
   triage_class: r-ready
