@@ -180,23 +180,22 @@ backlog:
   - der
   - grid
   - auto-redefined
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Medium
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
   acceptance_criteria:
-  - Module `core/lca_factors/btm_solar.py` exists with `load_nerc_btm_solar_cf() -> dict[str, float]` and `load_nerc_displaced_gen_profile() -> dict[str, np.ndarray]`
-  - Data file `inst/extdata/nerc_btm_solar_cf.csv` exists containing 7 NERC regions with annual CF values and 24×12 hour-month profile matrix
-  - Test `tests/test_lca_btm_solar.py::test_caiso_greater_than_nyiso` asserts CAISO CF ≥ 0.21 and NYISO CF ≤ 0.15
-  - Test `tests/test_lca_btm_solar.py::test_profile_matrix_shape` verifies profile output is (7, 24, 12) for regions × hours × months
-  - '`./verify.sh --full` exits 0'
+  - test -f R/nerc_btm_solar.R && grep -q 'load_nerc_btm_solar_cf' R/nerc_btm_solar.R
+  - test -f inst/extdata/nerc_btm_solar_cf.csv
+  - tests/testthat/test-btm-solar.R asserts CAISO CF >= 0.21 and NYISO CF <= 0.15
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136390633
   triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
-  triage_class: r-ac-rewrite
-  triage_note: 'BTM solar CF: AC says core/lca_factors/btm_solar.py (py) but data path is inst/extdata (R) -- rewrite to R'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (BTM solar CF: AC says core/lca_factors/btm_solar.py (py) but data path is inst/extdata (R) -- rewrite to R)'
 - id: task-d06eac0a
   title: '[LCA-NERC] Per-NERC diesel-tier default (Tier IV coastal mandates)'
   description: '**Problem.** Wright''s `diesel_backup.py` defaults to EPA Tier II for every region. California (CARB), Texas coastal counties, and Northeast port-adjacent counties all mandate Tier IV. Tier IV cuts NOx 94% + PM2.5 90% vs Tier II (`diesel_backup.py:42-62`).
@@ -229,24 +228,22 @@ backlog:
   - diesel
   - backup
   - auto-redefined
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Low
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
   acceptance_criteria:
-  - '`core/nerc_tiers/__init__.py` and `core/nerc_tiers/tier_lookup.py` exist'
-  - '`load_nerc_diesel_tier_default()` returns a list of 7 dicts: {nerc_region: str, diesel_tier: str, coverage_notes: str}'
-  - CAISO, NYISO, ISO-NE all map to Tier IV
-  - SERC_SE, PJM-DE, SPP all map to Tier II
-  - Tests in `tests/test_nerc_tier_lookup.py` verify all mappings and edge cases
+  - test -f R/nerc_diesel_tier.R && grep -q 'load_nerc_diesel_tier_default' R/nerc_diesel_tier.R
+  - load_nerc_diesel_tier_default() returns 7 NERC rows; CAISO/NYISO/ISO-NE=Tier IV, SERC_SE/PJM/SPP=Tier II
+  - test -f tests/testthat/test-diesel-tier.R
   - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136693940
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'diesel tier: AC says core/nerc_tiers/*.py -- same family as R #2/#3; rewrite to R'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (diesel tier: AC says core/nerc_tiers/*.py -- same family as R #2/#3; rewrite to R)'
 - id: task-e8a23156
   title: '[LCA-STORAGE] Expose LFP/NMC/sodium-ion ReCiPe-17-midpoint factors in emburdenlca'
   description: '**Problem.** Wright''s `src/dc_e2c3/modules/m25_storage.py:48-105` carries LFP + NMC + sodium-ion ReCiPe-2016 factors across 17 midpoints (climate_change, ozone_depletion, PM25, acidification, ecotoxicity×3, land×3, water, etc). Muir emburdenlca has zero storage LCA code.
@@ -326,22 +323,22 @@ backlog:
   - pumped-hydro
   - lca
   - auto-redefined
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Medium
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
   acceptance_criteria:
-  - '`pytest tests/test_lca_factors_schema.py::test_pumped_hydro_factors -v` passes'
-  - '`tests/fixtures/lca_factors_pumped_hydro.json` exists with 17 valid ReCiPe midpoints'
-  - 'Assertion: metal_depletion for pumped_hydro ≥ 10 × BESS mock baseline'
-  - '`./verify.sh --full` exits 0'
+  - R/storage_lca.R gains a 'pumped_hydro' chemistry; load_bess_lca_factors('pumped_hydro') returns 17 numeric ReCiPe midpoints
+  - pumped_hydro metal_depletion >= 10x the LFP baseline in the same table
+  - tests/testthat/test-storage-lca.R covers pumped_hydro and other chemistries are unchanged
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079296092
   triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
-  triage_class: r-ac-rewrite
-  triage_note: 'pumped-hydro storage: pytest AC, but twin of R #8 (hydrogen storage) -- rewrite to R'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (pumped-hydro storage: pytest AC, but twin of R #8 (hydrogen storage) -- rewrite to R)'
 - id: task-353641d2
   title: '[LCA-STORAGE] Hydrogen storage LCA factor set (electrolysis + fuel-cell cycle)'
   description: '**Problem.** H2 is a candidate long-duration storage for data-center backup (Tier IV mandate scenarios) but has no LCA in either repo. Round-trip includes alkaline/PEM electrolysis + compression/liquefaction + PEM fuel cell.
@@ -424,23 +421,23 @@ backlog:
   - flow
   - lca
   - auto-redefined
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Low
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
   acceptance_criteria:
-  - File `tests/e2e/fixtures/sample_lca_factors.py` exists with `make_vanadium_flow_factors()` and `make_zinc_bromide_factors()` returning dicts with exactly 17 keys each
-  - Test `tests/e2e/test_lca_factors.py::test_vanadium_metal_depletion_exceeds_lfp_by_50_percent` exists and passes
-  - Test `tests/e2e/test_lca_factors.py::test_zinc_bromide_lower_metal_depletion_than_vanadium` exists and passes
-  - '`./verify.sh --full` exits 0'
+  - R/storage_lca.R gains 'vanadium_flow' and 'zinc_bromide'; each load_bess_lca_factors(x) returns 17 numeric factors
+  - vanadium_flow metal_depletion >= 1.5x LFP; zinc_bromide metal_depletion < vanadium_flow
+  - test -f tests/testthat/test-storage-lca.R
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406414003721
   triage_attempts: 1
   triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3)'
-  triage_class: r-ac-rewrite
-  triage_note: 'flow battery: tests/e2e/*.py AC, same R factor-set family -- rewrite to R'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (flow battery: tests/e2e/*.py AC, same R factor-set family -- rewrite to R)'
 - id: task-bf86ae07
   title: '[LCA-COMPUTE] Compute-type → implied storage MWh/MW sizing table'
   description: '**Problem.** Different AI compute workloads (training vs inference vs batch) have different load profiles → different storage sizing needs to flatten the data-center''s demand on the grid. Wright''s `btm_generation.py` hardcodes 4-hour duration everywhere.
@@ -474,18 +471,22 @@ backlog:
   - compute
   - storage
   - headroom
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: High
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
-  acceptance_criteria: []
+  acceptance_criteria:
+  - test -f R/compute_storage_sizing.R && grep -q 'compute_storage_sizing' R/compute_storage_sizing.R
+  - compute_storage_sizing() returns a tibble keyed by compute_type with an implied storage MWh/MW column (no hardcoded 4h)
+  - test -f tests/testthat/test-compute-sizing.R
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406413972980
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'compute->storage sizing table: author R AC (R data table)'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (compute->storage sizing table: author R AC (R data table))'
 - id: task-233b6d4f
   title: '[LCA-BACKUP] Natural-gas peaker LCA module (grid-side, acute + lifecycle)'
   description: '**Problem.** Wright''s backup module is diesel-only (`diesel_backup.py`); gas CTs appear only in `btm_generation.py` as a BTM scenario, not as a grid-side-firming alternative. For NERC regions where gas is on the margin anyway (SPP, SERC_SE), gas peaker LCA matters for the comparison vs BTM battery.
@@ -518,18 +519,21 @@ backlog:
   - gas
   - peaker
   - lca
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: High
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
-  acceptance_criteria: []
+  acceptance_criteria:
+  - R/backup_lca.R gains backup_lca_gas_peaker(mw, hours) returning 17 named numeric factors (operational+embodied+lifecycle)
+  - backup_lca_gas_peaker decorated @export; tests/testthat/test-backup-lca.R locks acute NOx/PM25 and lifecycle CO2e
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400572133544
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'gas-peaker backup: author R AC in R/backup_lca.R family'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (gas-peaker backup: author R AC in R/backup_lca.R family)'
 - id: task-921552c0
   title: '[LCA-BACKUP] Grid-side BTM-battery-as-backup LCA (vs behind-the-meter)'
   description: '**Problem.** BTM battery can serve either (a) grid-side firming (reduces hyperscale demand on the grid during peaks) or (b) household reliability. The LCA is identical but the attribution rule differs. Need both scenarios cleanly separable in the model.
@@ -562,18 +566,21 @@ backlog:
   - bess
   - btm
   - lca
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: High
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
-  acceptance_criteria: []
+  acceptance_criteria:
+  - R/backup_lca.R gains backup_lca_btm_battery(mw, hours, attribution) with attribution in c('grid','household')
+  - identical LCA across attribution modes, only the attribution rule differs; tests/testthat/test-backup-lca.R covers both
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406414015732
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'BTM-battery-as-backup: author R AC'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (BTM-battery-as-backup: author R AC)'
 - id: task-d7d83bb8
   title: '[LCA-BACKUP] Hydrogen fuel-cell backup LCA (Tier IV mandate scenarios)'
   description: '**Problem.** When a NERC region mandates Tier IV diesel (CAISO, NYISO, ISO-NE), the capital premium pushes some operators toward H2 fuel-cell backup instead. Needs comparable LCA so the Tier IV mandate''s second-order effects (H2 adoption) can be scored.
@@ -703,21 +710,22 @@ backlog:
   - compute
   - workload
   - headroom
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Medium
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
   acceptance_criteria:
-  - Function returns 4 rows.
-  - 'flexibility_score: training 0.6, inference 0.05, batch 0.9, crypto 0.1.'
-  - Documented from the Masanet 2020 + Andrae 2020 datacenter energy literature.
+  - test -f R/workload_taxonomy.R && grep -q 'load_workload_taxonomy' R/workload_taxonomy.R
+  - 'load_workload_taxonomy() returns 4 rows with flexibility_score: training 0.6, inference 0.05, batch 0.9, crypto 0.1 (cite Masanet 2020/Andrae 2020)'
+  - test -f tests/testthat/test-workload-taxonomy.R
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383127780792
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'workload taxonomy: author R AC (returns-rows data table)'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (workload taxonomy: author R AC (returns-rows data table))'
 - id: task-aaad24c7
   title: '[LCA-COMPUTE] Workload → storage-MWh/MW ratio × NERC region (couples 11 + 16)'
   description: '**Problem.** The compute-storage-sizing from task 11 and the workload-taxonomy from task 16 are separable but need to be joined × NERC region, because the implied storage sizing also depends on the grid''s duck-curve shape (CAISO needs more storage per MW of inference load than SERC_SE because its evening ramp is steeper).
@@ -749,18 +757,25 @@ backlog:
   - compute
   - nerc
   - storage
-  - triage:r-ac-rewrite
+  - triage:r-ready
   parent: '1219400571756320'
   priority_level: Medium
   asana_assignee: '1337952238455'
   asana_project_gid: '1209122169114029'
-  acceptance_criteria: []
+  acceptance_criteria:
+  - test -f R/workload_storage_nerc.R && grep -q 'workload_storage_by_nerc' R/workload_storage_nerc.R
+  - workload_storage_by_nerc() joins compute_storage_sizing() x load_workload_taxonomy() x NERC duck-curve shape
+  - test -f tests/testthat/test-workload-storage-nerc.R
+  - ./verify.sh --full exits 0
   size: 1
   state: backlog
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400572132353
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: r-ac-rewrite
-  triage_note: 'workload x storage x NERC join: author R AC; depends on sizing + taxonomy'
+  triage_class: r-ready
+  triage_note: 'AC rewritten from auto-redefine Python scaffolding to R (workload x storage x NERC join: author R AC; depends on sizing + taxonomy)'
+  depends_on:
+  - task-bf86ae07
+  - task-905b3978
 - id: task-157c7558
   title: '[CCC-EQUITY] Re-export household_emergy_insecurity() to emburdenlca public API'
   description: '**Problem.** The combined adequacy+burden metric `household_emergy_insecurity()` lives in `emburdensynth/R/emergy.R:1194` but emburdenlca''s public API doesn''t expose it. CCC''s equity constraint on wright can''t bind on HEII without this.
@@ -804,52 +819,6 @@ backlog:
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
   triage_class: r-ready
   triage_note: R/ HEII re-export to emburdenlca public API
-- id: task-6fd47b9a
-  title: '[CCC-EQUITY] Enable + bind HEII in DC-E2C3 equity/constraint_hook.py (wright-side)'
-  description: '**Problem.** Wright''s `src/dc_e2c3/equity/constraint_hook.py:17-70` has two burden-based equity constraints but ships DISABLED (`configs/default.yml:33-36` + `constraints.equity_enabled: false`). HEII is not consulted at all. The CCC binary-search can go to its MW envelope without ever checking HEII.
-
-
-    **Deliverable.** Wright-side change: (a) enable `constraints.equity_enabled: true` in `configs/default.yml`; (b) add `heii_threshold` constraint in `constraint_hook.py` that calls `emburdenlca::compute_heii_for_ccc()` via rpy2 (or a precomputed table) and binds the CCC search; (c) regression test that CCC-MW with equity binding is lower than without, for the Duke-Carolinas 300 MW case.
-
-
-    **Acceptance criteria.**
-
-    1. `equity_enabled: true` in default.yml.
-
-    2. `heii_threshold: 0.5` (fractional) in default.yml as the binding value.
-
-    3. Duke-Carolinas CCC-MW with HEII binding ≤ CCC-MW without.
-
-    4. Regression test in `tests/test_constraint_hook.py` on wright.
-
-
-    **Non-goals.** No new HEII methodology — pure wiring. No change to the HEII threshold value itself (just plumb it).
-
-
-    **Files.** (wright) `src/dc_e2c3/equity/constraint_hook.py`, `configs/default.yml`, `tests/test_constraint_hook.py`. Executed via SSH from a muir ticket owner.'
-  type: feature
-  priority: 5
-  status: todo
-  created_at: '2026-10-11T22:32:18.387265+00:00'
-  source: fleet-cli
-  source_repo: /home/ess/Documents/apps/emburdenlca
-  labels:
-  - heii
-  - ccc
-  - equity
-  - wright
-  - triage:wright-rehome
-  parent: '1219400571756320'
-  priority_level: High
-  asana_assignee: '1337952238455'
-  asana_project_gid: '1209122169114029'
-  acceptance_criteria: []
-  size: 1
-  state: backlog
-  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079342656
-  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
-  triage_class: wright-rehome
-  triage_note: edits src/dc_e2c3/equity/constraint_hook.py on wright -- not emburdenlca
 - id: task-fd012517
   title: '[LCA-INFRA] Full pymrio / EXIOBASE multi-region integration (replace WF+ZA cache-only)'
   description: '**Problem.** emburdenlca''s EXIOBASE path only supports 2 cached regions (WF = Rest-of-Africa, ZA = South Africa). Every other EXIOBASE region returns via the SSH-to-wright bridge (`global_lca_service.R`). Full pymrio local load would let us cover all 49 EXIOBASE regions without the SSH roundtrip.
@@ -946,52 +915,3 @@ backlog:
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
   triage_class: r-ready-blocked
   triage_note: R/ecoinvent.R skeleton; BLOCKED on ecoinvent 3.10 license
-- id: task-fc765bba
-  title: '[LCA-INFRA] PowerGenome refinement for multi-region GenX accuracy (wright-side)'
-  description: '**Problem.** Wright''s `ROADMAP.md` §3A flags: multi-region GenX cases ''currently simplified from eGRID 2022; refine with PowerGenome for production accuracy''. The 11-region sweep in `data/outputs/full_model/all_regions_all_metrics.csv` uses the simplified fleet.
-
-
-    **Deliverable.** Wright-side: regenerate the 11-region GenX cases using PowerGenome''s full fleet aggregation. Compare marginal-CO2 + marginal-LMP vs the simplified fleet. If delta > 5%, document in the regional_comparison.json manifest and update the INFORMS deck caption.
-
-
-    **Acceptance criteria.**
-
-    1. 11 refined region configs in `src/dc_e2c3/data/powergenome/`.
-
-    2. Marginal-CO2 delta from the current simplified-fleet result reported.
-
-    3. If any region''s delta > 10%, the INFORMS deck slide 7 gains a caption asterisk.
-
-
-    **Non-goals.** No new regions. No chemistry sweep (LFP only).
-
-
-    **Files.** (wright) `src/dc_e2c3/data/powergenome/`. Executed via SSH from a muir ticket owner.'
-  type: feature
-  priority: 5
-  status: todo
-  created_at: '2026-10-11T22:32:28.494087+00:00'
-  source: fleet-cli
-  source_repo: /home/ess/Documents/apps/emburdenlca
-  labels:
-  - infra
-  - genx
-  - grid
-  - wright
-  - auto-redefined
-  - triage:wright-rehome
-  parent: '1219400571756320'
-  priority_level: Low
-  asana_assignee: '1337952238455'
-  asana_project_gid: '1209122169114029'
-  acceptance_criteria:
-  - New class `SSHTaskExecutor` in `adapters/ssh/` with async execute() and verify_files() methods
-  - Integration test in tests/e2e/test_ssh_executor.py mocks SSH client and verifies remote file checks pass/fail correctly
-  - genesis.yaml BacklogItem with external_target='ssh://wright' is correctly dispatched to SSHTaskExecutor
-  - ./verify.sh --full exits 0.
-  size: 1
-  state: backlog
-  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136778253
-  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
-  triage_class: wright-rehome
-  triage_note: PowerGenome/GenX + SSHTaskExecutor adapters/ssh (ssh://wright) -- orchestration/wright infra, not emburdenlca
