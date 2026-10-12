@@ -102,3 +102,81 @@ nerc_grid_factor <- function(nerc_region, year = NULL,
   if (nrow(row) == 0) return(NA_real_)
   row[[field]]
 }
+
+# ---- Per-NERC inst/extdata CSV loader (shared helper) ---------------
+.load_inst_extdata_csv <- function(basename) {
+  path <- system.file("extdata", basename, package = "emburdenlca")
+  if (!nzchar(path) || !file.exists(path)) {
+    guess <- file.path("inst", "extdata", basename)
+    if (file.exists(guess)) path <- guess
+  }
+  if (!nzchar(path) || !file.exists(path)) {
+    stop(basename, " not found; install emburdenlca or run from its repo root.")
+  }
+  stopifnot(requireNamespace("readr", quietly = TRUE))
+  readr::read_csv(path, show_col_types = FALSE)
+}
+
+# ---- Per-NERC AWARE water-use factor (Task #4) ----------------------
+
+#' Load per-NERC AWARE water-use factors.
+#'
+#' @description
+#' AWARE (Available WAter REmaining; Boulay et al. 2018) factors
+#' aggregated to NERC regions via population-weighted US state factors
+#' + eGRID subregion mapping. Replaces wright's `aware_factor: 12.5`
+#' hardcoded Duke-Carolinas value with region-specific scarcity signal.
+#'
+#' Range: NPCC 2.9 (abundant rainfall + Great Lakes) to CAISO/WECC 42
+#' (dry southwest). An identical 300 MW facility consuming 5.7 Mm³/yr
+#' direct cooling water has a water_scarcity_m3eq footprint that spans
+#' 14× across US regions on this axis alone.
+#'
+#' @return A tibble with `nerc_region, aware_factor, source_citation`.
+#' @export
+load_nerc_water_aware <- function() {
+  .load_inst_extdata_csv("nerc_aware_factors.csv")
+}
+
+# ---- Per-NERC BTM solar capacity factor (Task #5) --------------------
+
+#' Load per-NERC BTM solar annual capacity factor.
+#'
+#' @description
+#' NREL ReV + PVWatts regional CF aggregates for BTM solar (fixed-tilt,
+#' south-facing, latitude-adjusted). Replaces wright's hardcoded CAISO
+#' default with region-specific CF. Range: NPCC 0.14 to WECC 0.22
+#' (1.6×). Drives the duck-curve multiplier used by
+#' `compute_storage_sizing_by_nerc()`.
+#'
+#' Hourly displaced-generation profile is not yet materialized here —
+#' when a `wright:...btm_solar_profile_<nerc>.parquet` export lands,
+#' this helper will gain a `profile_24x12` column.
+#'
+#' @return A tibble with `nerc_region, annual_cf, notes`.
+#' @export
+load_nerc_btm_solar_cf <- function() {
+  .load_inst_extdata_csv("nerc_btm_solar_cf.csv")
+}
+
+# ---- Per-NERC diesel tier default (Task #6) -------------------------
+
+#' Load per-NERC diesel-tier regulatory default.
+#'
+#' @description
+#' Which EPA tier a new diesel genset defaults to by regulatory
+#' environment: CAISO + NPCC (CARB + NY/MA MACT) mandate Tier IV;
+#' other NERC regions use Tier II as the dominant default. Overrides
+#' wright's `tier: "II"` global config. Tier IV cuts NOx 94% + PM2.5
+#' 90% vs Tier II — the single biggest acute-emissions lever in
+#' backup design when a mandate applies.
+#'
+#' Note: this is a REGIONAL default, not a per-county override. Coastal
+#' nonattainment counties within non-Tier-IV regions still require
+#' Tier IV via local permitting; that lookup is a separate ticket.
+#'
+#' @return A tibble with `nerc_region, tier_default, regulatory_basis`.
+#' @export
+load_nerc_diesel_tier_default <- function() {
+  .load_inst_extdata_csv("nerc_diesel_tier_default.csv")
+}

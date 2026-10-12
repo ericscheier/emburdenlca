@@ -1,0 +1,9 @@
+nerc_region,annual_cf,notes
+WECC,0.22,"CAISO + Mountain West + Southwest; NREL ReV + PVWatts aggregate; highest CF."
+TRE,0.21,"ERCOT; central Texas has excellent solar resource."
+SPP,0.21,"Great Plains + Southwest; strong solar."
+FRCC,0.19,"Florida; high irradiance but humidity + afternoon clouds."
+SERC,0.18,"Southeast; moderate irradiance + more frequent cloud cover."
+RFC,0.16,"Mid-Atlantic + Great Lakes; moderate irradiance."
+MRO,0.17,"Upper Midwest; good summer irradiance, lower winter."
+NPCC,0.14,"Northeast; lowest annual CF; latitude + winter weather."

@@ -721,7 +721,7 @@ backlog:
   - test -f tests/testthat/test-workload-taxonomy.R
   - ./verify.sh --full exits 0
   size: 1
-  state: todo
+  state: in_review
   pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383127780792
   triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
   triage_class: r-ready

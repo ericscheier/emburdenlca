@@ -150,6 +150,156 @@ backup_lca_btm_battery <- function(mwh, chemistry = "lfp",
   )
 }
 
+# ---- Hydrogen fuel-cell backup (Task #14) ---------------------------
+
+#' Hydrogen fuel-cell backup LCA.
+#'
+#' @description
+#' PEM fuel-cell + on-site H2 storage used for data-center backup under
+#' Tier IV mandate scenarios (CAISO, NYISO, ISO-NE). Operational
+#' emissions are near-zero (NOx + PM2.5 trace levels only, no SO2 /
+#' CO / VOC from combustion); the embodied + lifecycle penalty is in
+#' platinum/iridium catalyst + stack manufacturing.
+#'
+#' Factors stack with `load_bess_lca_factors("hydrogen")` which carries
+#' the storage-round-trip ReCiPe midpoints. This function returns the
+#' fuel-cell-specific amortized operational + embodied cost.
+#'
+#' @param mw Nameplate capacity in MW.
+#' @param hours Expected operating hours per year (usually small — H2
+#'   backup is for outages + mandated reliability tests).
+#' @param lifetime_years Lifetime for embodied amortization (default
+#'   15; PEM stacks typically rated 10-20 years).
+#' @return One-row data.frame with acute + lifecycle + embodied.
+#' @export
+backup_lca_hydrogen_fuelcell <- function(mw, hours,
+                                           lifetime_years = 15) {
+  stopifnot(is.numeric(mw), mw > 0,
+            is.numeric(hours), hours >= 0,
+            is.numeric(lifetime_years), lifetime_years > 0)
+  # Operational: PEM fuel cells running on H2 produce water + heat + trace
+  # NOx (from air N2 oxidation on hot catalyst). Rates from NREL 2024
+  # H2-FC datasheet: NOx 0.004 kg/MWh (3 orders of magnitude below
+  # diesel Tier II), PM2.5 ~0.0, SO2 ~0.0 (fuel is pure H2), CO 0.001,
+  # VOC 0.0. No combustion CO2 — but UPSTREAM H2 production carbon is
+  # non-trivial and is tracked via `load_bess_lca_factors("hydrogen")`.
+  ef <- list(
+    nox   = 0.004,
+    pm25  = 0.0,
+    so2   = 0.0,
+    co    = 0.001,
+    voc   = 0.0,
+    co2   = 0.0  # on-site; upstream carbon flows through the H2 LCA
+  )
+  mwh <- mw * hours
+  # Embodied: ~95 kg CO2e per kW nameplate for PEM FC stack (DOE 2024
+  # H2@Scale LCA median). Amortize over lifetime_years.
+  embodied_co2_total <- mw * 1000 * 95.0
+  data.frame(
+    tech                   = "hydrogen_fuelcell",
+    mw                     = mw,
+    hours                  = hours,
+    acute_nox_kg_yr        = ef$nox * mwh,
+    acute_pm25_kg_yr       = ef$pm25 * mwh,
+    acute_so2_kg_yr        = ef$so2 * mwh,
+    acute_co_kg_yr         = ef$co * mwh,
+    acute_voc_kg_yr        = ef$voc * mwh,
+    operational_co2_kg_yr  = ef$co2 * mwh,
+    # Lifecycle CO2 includes the upstream H2 production carbon,
+    # dominated by electrolysis grid intensity. Use a conservative
+    # 25 kg CO2e per kg H2 (green H2 pathway + grid partial clean).
+    # 1 MWh at 60% FC efficiency ≈ 50 kg H2 input.
+    lifecycle_co2_kg_yr    = mwh * 50 * 25,
+    embodied_co2_kg_yr     = embodied_co2_total / lifetime_years,
+    lifetime_years         = lifetime_years
+  )
+}
+
+# ---- Pumped-hydro backup (Task #15) ---------------------------------
+
+# NERC regions where topography + pre-existing PHS fleet makes it
+# feasible for a data center to contract with the regional PHS
+# operators for firming capacity. From DOE 2024 PHS Resource Assessment
+# + eGRID 2023 subregion PHS capacity > 1 GW threshold.
+.PHS_FEASIBLE_NERC <- c("WECC", "SERC", "NPCC", "RFC")
+
+#' Pumped-hydro backup LCA — where regionally available.
+#'
+#' @description
+#' For contracted PHS firming (as opposed to new PHS build), the
+#' LCA attribution is the amortized share of existing fleet-level
+#' embodied + lifecycle over the contracted capacity. Returns NA for
+#' NERC regions without pre-existing PHS resource.
+#'
+#' @param mw Contracted PHS firming capacity in MW.
+#' @param hours Expected firming hours per year.
+#' @param nerc_region NERC region code; must be one of WECC, SERC,
+#'   NPCC, RFC for a non-NA result.
+#' @param lifetime_years Lifetime for amortization (default 60 — PHS
+#'   facilities routinely last 50-100 years).
+#' @return One-row data.frame; NA-filled with `feasible = FALSE` when
+#'   the region has no pre-existing PHS fleet to contract against.
+#' @export
+backup_lca_pumped_hydro <- function(mw, hours, nerc_region,
+                                      lifetime_years = 60) {
+  stopifnot(is.numeric(mw), mw > 0,
+            is.numeric(hours), hours >= 0,
+            is.character(nerc_region))
+  feasible <- nerc_region %in% .PHS_FEASIBLE_NERC
+  if (!feasible) {
+    return(data.frame(
+      tech                   = "pumped_hydro",
+      mw                     = mw,
+      hours                  = hours,
+      nerc_region            = nerc_region,
+      feasible               = FALSE,
+      acute_nox_kg_yr        = NA_real_,
+      acute_pm25_kg_yr       = NA_real_,
+      acute_so2_kg_yr        = NA_real_,
+      acute_co_kg_yr         = NA_real_,
+      acute_voc_kg_yr        = NA_real_,
+      operational_co2_kg_yr  = NA_real_,
+      lifecycle_co2_kg_yr    = NA_real_,
+      embodied_co2_kg_yr     = NA_real_,
+      lifetime_years         = lifetime_years,
+      notes = sprintf(
+        "No pre-existing PHS fleet > 1 GW in %s (DOE 2024 PHS Resource Assessment). Feasible NERC regions: %s.",
+        nerc_region, paste(.PHS_FEASIBLE_NERC, collapse = ", "))
+    ))
+  }
+  mwh <- mw * hours
+  # Operational: PHS is near-zero on acute emissions during firming —
+  # it is just moving water through a turbine. The emission signature
+  # is the UPSTREAM grid intensity when charging the reservoir
+  # (dominant in high-coal regions), captured elsewhere via
+  # load_nerc_grid_factors(). For the firming service unit itself,
+  # acute = 0.
+  # Embodied: 90 kg CO2e per kWh (NREL 2024 PHS LCA — concrete + steel
+  # + reservoir). Amortize over 60-year lifetime; share scales with
+  # contracted capacity vs fleet. Conservative 1.0 attribution here.
+  embodied_co2_total <- mw * 1000 * 90.0
+  data.frame(
+    tech                   = "pumped_hydro",
+    mw                     = mw,
+    hours                  = hours,
+    nerc_region            = nerc_region,
+    feasible               = TRUE,
+    acute_nox_kg_yr        = 0,
+    acute_pm25_kg_yr       = 0,
+    acute_so2_kg_yr        = 0,
+    acute_co_kg_yr         = 0,
+    acute_voc_kg_yr        = 0,
+    operational_co2_kg_yr  = 0,
+    # Lifecycle CO2 for PHS = embodied / lifetime + charging-grid cost.
+    # Charging grid cost not computed here (needs load_nerc_grid_factors
+    # and a cycle count); embodied-amortized is a lower bound.
+    lifecycle_co2_kg_yr    = embodied_co2_total / lifetime_years,
+    embodied_co2_kg_yr     = embodied_co2_total / lifetime_years,
+    lifetime_years         = lifetime_years,
+    notes = sprintf("PHS firming contracted in %s (feasible region).", nerc_region)
+  )
+}
+
 #' Return a comparison table across backup technologies.
 #'
 #' @description
@@ -160,36 +310,57 @@ backup_lca_btm_battery <- function(mwh, chemistry = "lfp",
 #'
 #' @param mw Nameplate MW to size against (default 300).
 #' @param hours Firming hours (default 4).
+#' @param nerc_region Optional NERC region (default `"SERC"`); gates
+#'   whether `pumped_hydro` is reported as feasible.
 #' @return A long-form data.frame with one row per technology/metric.
 #' @export
-backup_lca_compare <- function(mw = 300, hours = 4) {
+backup_lca_compare <- function(mw = 300, hours = 4,
+                                 nerc_region = "SERC") {
   if (!exists("backup_lca_btm_battery", mode = "function")) {
     source(file.path("R", "backup_lca.R"))
   }
-  gas <- backup_lca_natural_gas_peaker(mw = mw, hours = hours)
-  lfp <- backup_lca_btm_battery(mwh = mw * hours, chemistry = "lfp",
-                                 mode = "grid_firming")
-  nmc <- backup_lca_btm_battery(mwh = mw * hours, chemistry = "nmc",
-                                 mode = "grid_firming")
-  rbind(
-    data.frame(tech = "natural_gas_peaker",
-               mw = mw, hours = hours,
-               acute_nox_kg_yr = gas$acute_nox_kg_yr,
-               acute_pm25_kg_yr = gas$acute_pm25_kg_yr,
-               operational_co2_kg_yr = gas$operational_co2_kg_yr,
-               lifecycle_co2_kg_yr = gas$lifecycle_co2_kg_yr,
-               embodied_co2_kg_yr = gas$embodied_co2_kg_yr),
-    data.frame(tech = "btm_battery_lfp",
-               mw = mw, hours = hours,
-               acute_nox_kg_yr = 0, acute_pm25_kg_yr = 0,
-               operational_co2_kg_yr = 0,
-               lifecycle_co2_kg_yr = lfp$embodied_co2_kg_yr,  # embodied is the entire LC for a BESS
-               embodied_co2_kg_yr = lfp$embodied_co2_kg_yr),
-    data.frame(tech = "btm_battery_nmc",
-               mw = mw, hours = hours,
-               acute_nox_kg_yr = 0, acute_pm25_kg_yr = 0,
-               operational_co2_kg_yr = 0,
-               lifecycle_co2_kg_yr = nmc$embodied_co2_kg_yr,
-               embodied_co2_kg_yr = nmc$embodied_co2_kg_yr)
+  cols <- c("tech", "mw", "hours",
+            "acute_nox_kg_yr", "acute_pm25_kg_yr",
+            "operational_co2_kg_yr",
+            "lifecycle_co2_kg_yr", "embodied_co2_kg_yr")
+  slim <- function(x, tech_label, lifecycle = NULL) {
+    data.frame(
+      tech                   = tech_label,
+      mw                     = mw,
+      hours                  = hours,
+      acute_nox_kg_yr        = x$acute_nox_kg_yr %||% 0,
+      acute_pm25_kg_yr       = x$acute_pm25_kg_yr %||% 0,
+      operational_co2_kg_yr  = x$operational_co2_kg_yr %||% 0,
+      lifecycle_co2_kg_yr    = lifecycle %||% (x$lifecycle_co2_kg_yr %||%
+                                                 x$embodied_co2_kg_yr),
+      embodied_co2_kg_yr     = x$embodied_co2_kg_yr
+    )
+  }
+  rows <- list(
+    slim(backup_lca_natural_gas_peaker(mw = mw, hours = hours),
+         "natural_gas_peaker"),
+    slim(backup_lca_btm_battery(mwh = mw * hours, chemistry = "lfp",
+                                 mode = "grid_firming"),
+         "btm_battery_lfp",
+         lifecycle = backup_lca_btm_battery(mwh = mw * hours,
+                                            chemistry = "lfp",
+                                            mode = "grid_firming"
+                                            )$embodied_co2_kg_yr),
+    slim(backup_lca_btm_battery(mwh = mw * hours, chemistry = "nmc",
+                                 mode = "grid_firming"),
+         "btm_battery_nmc",
+         lifecycle = backup_lca_btm_battery(mwh = mw * hours,
+                                            chemistry = "nmc",
+                                            mode = "grid_firming"
+                                            )$embodied_co2_kg_yr),
+    slim(backup_lca_hydrogen_fuelcell(mw = mw, hours = hours),
+         "hydrogen_fuelcell")
   )
+  # Pumped-hydro only where it's feasible.
+  phs <- backup_lca_pumped_hydro(mw = mw, hours = hours,
+                                   nerc_region = nerc_region)
+  if (isTRUE(phs$feasible)) {
+    rows[[length(rows) + 1]] <- slim(phs, "pumped_hydro")
+  }
+  do.call(rbind, rows)[, cols]
 }

@@ -1,0 +1,9 @@
+nerc_region,tier_default,regulatory_basis
+WECC,"IV","CARB CA ATCM for Stationary Compression Ignition Engines (Tier IV mandatory on new installs after 2013; retrofit targets through 2024)."
+NPCC,"IV","NY MACT ZZZZ + NESHAP RICE + NJ/MA attainment nonattainment for ozone + PM2.5."
+TRE,"II","Texas; Tier II default for most permitted gensets."
+SPP,"II","Great Plains; Tier II dominant default."
+MRO,"II","Upper Midwest; Tier II dominant default."
+RFC,"II","PA/OH/VA mixed; Tier II default except in nonattainment counties (handled per-permit)."
+SERC,"II","Southeast; Tier II dominant default."
+FRCC,"II","Florida; Tier II default."

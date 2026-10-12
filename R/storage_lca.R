@@ -16,7 +16,24 @@
 #' `inst/extdata/bess_recipe_factors.csv` + add rows to the loader's
 #' validation list.
 #'
+#' Chemistries supported, with representative source citations:
+#'   - `"lfp"`, `"nmc"`, `"sodium_ion"`: wright's DEFAULT_RECIPE_FACTORS
+#'     (Jasper 2022 + Peters 2024). RTE 0.92 / 0.93 / 0.88.
+#'   - `"pumped_hydro"`: NREL 2024 PHS LCA review. RTE 0.80. Dominant
+#'     impacts in metal_depletion (penstock + turbine steel) and
+#'     land occupation (reservoir); low toxicity + no critical minerals.
+#'   - `"hydrogen"`: PEM electrolysis + compression + PEM fuel-cell
+#'     round-trip, IEA Future of Hydrogen 2024 + Argonne GREET 2024.
+#'     RTE 0.35. Platinum + iridium drive metal_depletion; electrolysis
+#'     water intensity ~9 L / kg H2 drives water_depletion.
+#'   - `"vanadium_flow"`, `"zinc_bromide"`: DOE Long-Duration Storage
+#'     Shot 2024 LCA report. RTE 0.70 / 0.65. Vanadium flow carries
+#'     the highest metal_depletion (580 kg Fe-eq/kWh — vanadium is
+#'     critical); zinc-bromide avoids vanadium but shifts intensity
+#'     into ecotoxicity (bromide chemistry).
+#'
 #' @param chemistry Character; one of `"lfp"`, `"nmc"`, `"sodium_ion"`,
+#'   `"pumped_hydro"`, `"hydrogen"`, `"vanadium_flow"`, `"zinc_bromide"`,
 #'   or `"all"` to return every chemistry.
 #' @return A tibble with columns `chemistry, rte,
 #'   climate_change_kg_co2_eq, ozone_depletion_kg_cfc11_eq,
@@ -37,7 +54,12 @@
 #' all_factors <- load_bess_lca_factors("all")
 #' }
 load_bess_lca_factors <- function(chemistry = c("lfp", "nmc",
-                                                   "sodium_ion", "all")) {
+                                                   "sodium_ion",
+                                                   "pumped_hydro",
+                                                   "hydrogen",
+                                                   "vanadium_flow",
+                                                   "zinc_bromide",
+                                                   "all")) {
   chemistry <- match.arg(chemistry)
   path <- system.file("extdata", "bess_recipe_factors.csv",
                       package = "emburdenlca")

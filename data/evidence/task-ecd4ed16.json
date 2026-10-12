@@ -1,0 +1,10 @@
+{
+  "task_id": "task-ecd4ed16",
+  "command": "./verify.sh --full",
+  "returncode": 0,
+  "diff_present": true,
+  "files_changed": 11,
+  "passed": true,
+  "output_tail": "=== emburdenlca verify ===\n  devtools::test()                        PASS\n  NAMESPACE matches roxygen comments      PASS\n  R/nerc_regions.R coverage >= 80%        PASS\nVERIFY OK\n",
+  "recorded_at": "2026-10-11T22:58:30.721376+00:00"
+}

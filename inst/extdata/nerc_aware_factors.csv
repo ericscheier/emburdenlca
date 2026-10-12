@@ -1,0 +1,10 @@
+nerc_region,aware_factor,source_citation
+CAISO_WECC,42.0,"CAISO + Great Basin states; Boulay 2018 AWARE methodology; US dry-southwest aggregate."
+WECC,18.5,"Mountain West average; mixed arid + rainfall mountain basins."
+SPP,22.0,"Southwest Power Pool; arid Oklahoma/Texas Panhandle + western Kansas."
+TRE,14.0,"ERCOT; Texas; mixed arid + Gulf coastal."
+SERC,3.8,"Southeast; abundant rainfall + major river basins."
+FRCC,3.2,"Florida; subtropical rainfall + extensive aquifer system."
+RFC,4.5,"Mid-Atlantic + Great Lakes; mixed humid + Lakes-adjacent."
+MRO,6.8,"Upper Midwest + Dakotas; mixed humid continental + Great Lakes."
+NPCC,2.9,"Northeast + Northern NY; abundant rainfall + Great Lakes."

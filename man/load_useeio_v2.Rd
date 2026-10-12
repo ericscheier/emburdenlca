@@ -7,7 +7,8 @@
 load_useeio_v2(
   level = c("detail", "summary"),
   force_refresh = FALSE,
-  model = "USEEIOv2.0.1-411"
+  model = "USEEIOv2.0.1-411",
+  indicators = NULL
 )
 }
 \arguments{
@@ -16,19 +17,28 @@ load_useeio_v2(
 \item{force_refresh}{Ignore cache, rebuild factors (default \code{FALSE}).}
 
 \item{model}{Which USEEIO model release to use (default \code{"USEEIOv2.0.1-411"}).}
+
+\item{indicators}{Optional character vector of extra USEEIO N-matrix
+row names to pull. Pass exactly as they appear in \code{rownames(m$N)}
+(e.g. \code{"Acidification Potential"}, \code{"Particulate Matter 2.5"},
+\code{"Water Use"}). Default \code{NULL} preserves historical return shape.}
 }
 \value{
 A tibble with columns \code{sector_code}, \code{sector_name},
 \code{co2e_total}, \code{co2e_direct}, \code{emergy_total_sej_per_dollar},
-\code{model}, \code{level}.
+\code{model}, \code{level}, plus one \verb{<slug>_total} column per entry in
+\code{indicators}.
 }
 \description{
 Returns a per-sector factor table (411 NAICS BEA detail sectors by
-default; summary 71-sector table on request). Factor columns include
-direct and total GHG intensity (kg CO2e / $) and emergy per $
-(sej / $). Pulls from the local cache; populates via the upstream
-\code{useeior} package or an EPA CSV release the first time the function is
-called.
+default; summary 71-sector table on request). The default factor set
+is CO2e (direct + total) plus solar emergy, matching the shape every
+downstream caller expects. \strong{Additional TRACI 2.1 impact categories
+(acidification, eutrophication, PM2.5-eq, water, land, etc.) can be
+pulled by passing their row names via \code{indicators}} — those columns
+are added to the returned tibble with slugified names (lower-case,
+underscores, \verb{_total} suffix). The cache key varies with the
+indicator set so a bigger pull does not stomp on the default cache.
 }
 \details{
 When \code{useeior} is not installed and no cached table is present, prints
@@ -38,5 +48,9 @@ a one-line install instruction and errors — avoids silent failure.
 \dontrun{
 tbl <- load_useeio_v2()
 head(tbl)
+traci <- load_useeio_v2(indicators = c("Acidification Potential",
+                                        "Particulate Matter 2.5",
+                                        "Water Use"))
+head(traci)
 }
 }
