@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# verify.sh — Definition-of-Done gate for emburdenlca.
+#
+# Called by the Ralph Loop driver after each task iteration to decide
+# whether to mark the task done. Exits 0 iff the package installs and
+# every testthat test passes. --full adds R CMD check (slow); default
+# (`--quick`) is fast enough for the Loop's per-iteration cycle.
+#
+# This file lives at the worktree root because the Loop's driver
+# refuses to mark a task complete without it (`verify.sh not found at
+# <worktree>/verify.sh; refusing to mark work done`). Keep it at the
+# repo root; downstream packages that depend on emburdenlca can
+# source it to reproduce the same gate.
+#
+# Usage:
+#   ./verify.sh            # quick: install + testthat (default)
+#   ./verify.sh --quick    # same as default
+#   ./verify.sh --full     # quick + R CMD check (10-30 min)
+set -euo pipefail
+
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+MODE="${1:---quick}"
+FAIL=0
+step() { printf "\n== %s ==\n" "$1"; }
+
+step "install (devtools::install, quiet)"
+Rscript -e 'devtools::install(upgrade = "never", quiet = TRUE)' \
+    || { echo "install failed"; FAIL=1; }
+
+if [[ $FAIL -eq 0 ]]; then
+    step "testthat suite"
+    Rscript -e 'library(testthat); library(emburdenlca); test_check("emburdenlca")' \
+        || { echo "testthat failures"; FAIL=1; }
+fi
+
+if [[ "$MODE" == "--full" && $FAIL -eq 0 ]]; then
+    step "R CMD check (slow)"
+    Rscript -e 'devtools::check(args = c("--no-manual", "--as-cran"), quiet = TRUE)' \
+        || { echo "R CMD check failures"; FAIL=1; }
+fi
+
+echo
+if [[ $FAIL -eq 0 ]]; then
+    echo "verify: OK ($MODE)"
+    exit 0
+else
+    echo "verify: FAIL ($MODE)"
+    exit 1
+fi
