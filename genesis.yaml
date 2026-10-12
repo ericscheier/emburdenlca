@@ -1,0 +1,934 @@
+version: '1.0'
+project:
+  name: emburdenlca
+  description: 'emburdenlca R package (LCA / life-cycle-assessment). verify.sh gate = devtools::install + testthat (R), --full adds R CMD check. GUARDRAIL: this is an R package; Python LCA-infra cards (pymrio/EXIOBASE/PowerGenome/GenX) migrated here from the self board are a SOURCING MISMATCH -- triage whether each is genuinely R-package work before promoting backlog->todo.'
+epics: []
+backlog:
+- id: task-ecd4ed16
+  title: '[LCA-DEEPENING] emburdenlca research backlog — NERC + storage + backup + HEII→CCC'
+  description: 'Deepen the Compute Carrying Capacity model and the emburdenlca factor library across six dimensions:
+
+
+    1. NERC-regional attribute variation beyond GenX dispatch (water AWARE, diesel tier, BTM solar CF currently inherit Duke default on wright).
+
+    2. Storage/BESS LCA factors for LFP / NMC / sodium-ion / pumped-hydro / hydrogen / flow (wright has LFP+NMC+Na-ion; muir emburdenlca has none).
+
+    3. Backup alternatives (natural-gas peaker, BTM battery, hydrogen fuel cell, pumped-hydro) with acute + lifecycle + embodied impacts (today only diesel is modeled grid-side).
+
+    4. Compute workload → storage-headroom sizing (training vs inference vs batch × storage MWh/MW ratio × NERC region).
+
+    5. HEII → CCC equity constraint as a BINDING gate (currently architected but DISABLED on wright configs/default.yml:33-36).
+
+    6. NERC-region map viz using the unused data/nerc_regions.gdb shapefile.
+
+
+    Paper 2 Model-chapter deliverable, target ES&T / Nature Energy Dec 2026. 25 subtasks will be submitted under this epic — grep genesis.yaml for [LCA-DEEPENING] or filter by this parent in Asana.
+
+    '
+  type: feature
+  priority: 1
+  status: todo
+  created_at: '2026-10-11T22:28:42.389116+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - lca-deepening
+  - paper-2
+  - model-chapter
+  - emburdenlca
+  - auto-redefined
+  epic: true
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Module `core/nerc_regions.py` exports `RegionRegistry` dataclass and `load_nerc_regions()` function with full type hints
+  - Test file `tests/test_nerc_regions.py` covers ≥80% of module logic
+  - Tests verify all NERC regions load correctly from shapefile
+  - Tests verify point-in-polygon lookup returns correct region code
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400571778370
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-e758cea2
+  title: '[LCA-NERC] Regionalize grid-electricity LCA factors by NERC region'
+  description: '**Problem.** `emburdenlca::load_useeio_v2()` is national; EXIOBASE is country-level. Nothing varies grid-electricity LCA factors by NERC region, which is the single biggest driver of marginal-dispatch LCA heterogeneity (`regional_damages_bar.png` shows 4,000× health-damage spread).
+
+
+    **Deliverable.** `R/nerc_regional_factors.R` with `load_nerc_grid_factors(nerc_region, year = 2024)` returning per-MWh factors: `co2e_marginal_kg_mwh, co2e_average_kg_mwh, nox_kg_mwh, so2_kg_mwh, pm25_kg_mwh, water_m3_mwh`. Sources: eGRID BA-year panel (`data/egrid_ba_year_2009_2024.csv`), aggregated via the county_nerc_crosswalk from task 1.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns all seven NERC regions.
+
+    2. Round-trip: aggregated 2024 CO2e matches eGRID national within 2%.
+
+    3. A test in `tests/testthat/test-nerc-factors.R` locks the API.
+
+
+    **Non-goals.** No sub-regional (BA-level) factors. No hourly dispatch — annual averages only.
+
+
+    **Files.** `R/nerc_regional_factors.R` (new), `tests/testthat/test-nerc-factors.R` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:49.780081+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - nerc
+  - lca
+  - grid
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Function returns all seven NERC regions.
+  - 'Round-trip: aggregated 2024 CO2e matches eGRID national within 2%.'
+  - A test in `tests/testthat/test-nerc-factors.R` locks the API.
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136764836
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-f5fd5d24
+  title: '[LCA-NERC] Per-NERC AWARE water-use factor (currently Duke default on wright)'
+  description: '**Problem.** Wright''s DC-E2C3 pipeline uses `aware_factor: 12.5` from `configs/default.yml` for every region — a Duke-Carolinas value. CAISO (water-scarce) and FRCC (water-abundant) should carry different AWARE factors.
+
+
+    **Deliverable.** Per-NERC AWARE lookup table in emburdenlca. Values from Boulay et al. 2018 AWARE methodology, aggregated to NERC regions via population-weighted USA state factors.
+
+
+    **Acceptance criteria.**
+
+    1. `load_nerc_water_aware()` returns 7-row tibble.
+
+    2. CAISO > FRCC > PJM ordering holds (regional scarcity).
+
+    3. Documented in `R/nerc_regional_factors.R` alongside the grid-factors loader.
+
+
+    **Non-goals.** No seasonal AWARE (dry vs wet season). No full LCIA for watersheds.
+
+
+    **Files.** `R/nerc_regional_factors.R` (append), `inst/extdata/nerc_aware_factors.csv` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:51.413789+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - nerc
+  - water
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - test -f R/nerc_regional_factors.R && grep -q 'load_nerc_water_aware' R/nerc_regional_factors.R
+  - test -f inst/extdata/nerc_aware_factors.csv
+  - test -f tests/test_nerc_aware.R && Rscript tests/test_nerc_aware.R
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079296074
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-902ecf45
+  title: '[LCA-NERC] Per-NERC BTM solar CF + displaced-generation profile'
+  description: '**Problem.** BTM-solar scenarios on wright''s DC-E2C3 use a flat CF; the real NREL ReV / PVWatts regional CF varies 0.14 (NYISO) to 0.22 (CAISO/SPP). The displaced-generation hourly profile also varies regionally (CAISO''s duck curve vs SERC''s flat baseload).
+
+
+    **Deliverable.** `R/nerc_regional_factors.R::load_nerc_btm_solar_cf()` returning 7-NERC-row annual CF + 24×12 hour-month displaced generation profile table.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 7 regions × 1 CF + 24×12 profile matrix.
+
+    2. CAISO CF > NYISO CF (sanity check).
+
+    3. Documented alongside grid + water factors.
+
+
+    **Non-goals.** No sub-hourly profiles. No azimuth / tilt sensitivity.
+
+
+    **Files.** `R/nerc_regional_factors.R` (append), `inst/extdata/nerc_btm_solar_cf.csv` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:53.002629+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - nerc
+  - der
+  - grid
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Module `core/lca_factors/btm_solar.py` exists with `load_nerc_btm_solar_cf() -> dict[str, float]` and `load_nerc_displaced_gen_profile() -> dict[str, np.ndarray]`
+  - Data file `inst/extdata/nerc_btm_solar_cf.csv` exists containing 7 NERC regions with annual CF values and 24×12 hour-month profile matrix
+  - Test `tests/test_lca_btm_solar.py::test_caiso_greater_than_nyiso` asserts CAISO CF ≥ 0.21 and NYISO CF ≤ 0.15
+  - Test `tests/test_lca_btm_solar.py::test_profile_matrix_shape` verifies profile output is (7, 24, 12) for regions × hours × months
+  - '`./verify.sh --full` exits 0'
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136390633
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-d06eac0a
+  title: '[LCA-NERC] Per-NERC diesel-tier default (Tier IV coastal mandates)'
+  description: '**Problem.** Wright''s `diesel_backup.py` defaults to EPA Tier II for every region. California (CARB), Texas coastal counties, and Northeast port-adjacent counties all mandate Tier IV. Tier IV cuts NOx 94% + PM2.5 90% vs Tier II (`diesel_backup.py:42-62`).
+
+
+    **Deliverable.** A per-NERC Tier default lookup in emburdenlca that wright can read via its config system. CAISO → Tier IV; NYISO, ISO-NE → Tier IV; SERC_SE, PJM-DE, SPP → Tier II.
+
+
+    **Acceptance criteria.**
+
+    1. `load_nerc_diesel_tier_default()` returns a 7-row tibble.
+
+    2. CAISO + NYISO + ISO-NE map to Tier IV.
+
+    3. Tier II mapping documents the state-coverage caveat.
+
+
+    **Non-goals.** No per-county tier override (coastal vs inland). No historical Tier phase-in dates.
+
+
+    **Files.** `R/nerc_regional_factors.R` (append), `inst/extdata/nerc_diesel_tier_default.csv` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:54.558476+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - nerc
+  - diesel
+  - backup
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Low
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - '`core/nerc_tiers/__init__.py` and `core/nerc_tiers/tier_lookup.py` exist'
+  - '`load_nerc_diesel_tier_default()` returns a list of 7 dicts: {nerc_region: str, diesel_tier: str, coverage_notes: str}'
+  - CAISO, NYISO, ISO-NE all map to Tier IV
+  - SERC_SE, PJM-DE, SPP all map to Tier II
+  - Tests in `tests/test_nerc_tier_lookup.py` verify all mappings and edge cases
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136693940
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-e8a23156
+  title: '[LCA-STORAGE] Expose LFP/NMC/sodium-ion ReCiPe-17-midpoint factors in emburdenlca'
+  description: '**Problem.** Wright''s `src/dc_e2c3/modules/m25_storage.py:48-105` carries LFP + NMC + sodium-ion ReCiPe-2016 factors across 17 midpoints (climate_change, ozone_depletion, PM25, acidification, ecotoxicity×3, land×3, water, etc). Muir emburdenlca has zero storage LCA code.
+
+
+    **Deliverable.** `R/storage_lca.R` with `load_bess_lca_factors(chemistry)` returning per-kWh-capacity factors across the 17 ReCiPe midpoints. Chemistries supported: LFP, NMC, sodium-ion.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns identical values to wright''s `DEFAULT_RECIPE_FACTORS` dict (round-trip CSV).
+
+    2. RTE values: LFP 0.92, NMC 0.93, Na-ion 0.88.
+
+    3. Test locks the API + values at `tests/testthat/test-storage-lca.R`.
+
+
+    **Non-goals.** No new chemistries (see tasks 8-10). No cell-vs-pack LCA breakdown.
+
+
+    **Files.** `R/storage_lca.R` (new), `inst/extdata/bess_recipe_factors.csv` (new, synced from wright).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:56.150423+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - storage
+  - bess
+  - lca
+  - recipe
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Function returns identical values to wright's `DEFAULT_RECIPE_FACTORS` dict (round-trip CSV).
+  - 'RTE values: LFP 0.92, NMC 0.93, Na-ion 0.88.'
+  - Test locks the API + values at `tests/testthat/test-storage-lca.R`.
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383127636589
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-8b2c6e6d
+  title: '[LCA-STORAGE] Pumped-hydro storage LCA factor set (new chemistry)'
+  description: '**Problem.** Pumped-hydro (PHS) is the largest storage technology in the US grid but neither wright nor emburdenlca models it. Different embodied-GHG profile from BESS (dominant: concrete + steel + reservoir landform).
+
+
+    **Deliverable.** Add ''pumped_hydro'' as a chemistry to `R/storage_lca.R`. Factors from NREL 2024 PHS LCA review; dominant impacts in: metal_depletion, acidification, land occupation. RTE 0.80.
+
+
+    **Acceptance criteria.**
+
+    1. `load_bess_lca_factors(''pumped_hydro'')` returns a tibble with the 17 ReCiPe midpoints.
+
+    2. Metal_depletion is at least 10× BESS (reservoir + penstock steel).
+
+    3. Documented regional availability (where topography supports PHS: WECC, SERC_SE, NYISO).
+
+
+    **Non-goals.** No underground / seawater PHS variants.
+
+
+    **Files.** `R/storage_lca.R` (append), `inst/extdata/bess_recipe_factors.csv` (append pumped_hydro row).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:31:58.196112+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - storage
+  - pumped-hydro
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - '`pytest tests/test_lca_factors_schema.py::test_pumped_hydro_factors -v` passes'
+  - '`tests/fixtures/lca_factors_pumped_hydro.json` exists with 17 valid ReCiPe midpoints'
+  - 'Assertion: metal_depletion for pumped_hydro ≥ 10 × BESS mock baseline'
+  - '`./verify.sh --full` exits 0'
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079296092
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-353641d2
+  title: '[LCA-STORAGE] Hydrogen storage LCA factor set (electrolysis + fuel-cell cycle)'
+  description: '**Problem.** H2 is a candidate long-duration storage for data-center backup (Tier IV mandate scenarios) but has no LCA in either repo. Round-trip includes alkaline/PEM electrolysis + compression/liquefaction + PEM fuel cell.
+
+
+    **Deliverable.** Add ''hydrogen'' as a chemistry to `R/storage_lca.R`. Factors from the IEA Future of Hydrogen (2024) report + Argonne GREET. Round-trip efficiency: 0.35 (electrolysis + storage + fuel-cell).
+
+
+    **Acceptance criteria.**
+
+    1. `load_bess_lca_factors(''hydrogen'')` returns 17-midpoint factors.
+
+    2. RTE at 0.35 ± 0.05.
+
+    3. Water consumption during electrolysis is tracked separately (direct_m3_per_kg_h2).
+
+
+    **Non-goals.** No ammonia carrier. No pink/yellow H2 pathways.
+
+
+    **Files.** `R/storage_lca.R` (append).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:00.326619+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - storage
+  - hydrogen
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - R/storage_lca.R hydrogen entry contains exactly 17 numeric factors (no null/NA values)
+  - 'Test: `load_bess_lca_factors(''hydrogen'')$round_trip_efficiency` equals 0.35 (±0.05 tolerance)'
+  - 'Test: `load_bess_lca_factors(''hydrogen'')$direct_m3_per_kg_h2` is numeric and > 0'
+  - Hydrogen entry appended without modifying or removing other chemistries
+  - '`./verify.sh --full` exits 0'
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079296366
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3)'
+  triage_attempts: 1
+- id: task-cee80a28
+  title: '[LCA-STORAGE] Flow-battery LCA factor set (vanadium + zinc-bromide)'
+  description: '**Problem.** Flow batteries are the leading long-duration storage candidate for 8+ hour discharge; vanadium flow in particular carries high critical-mineral intensity different from LFP/NMC.
+
+
+    **Deliverable.** Add ''vanadium_flow'' and ''zinc_bromide'' chemistries to `R/storage_lca.R`. Factors from the US DOE Long-Duration Storage Shot 2024 LCA report. RTE 0.70 (vanadium), 0.65 (zinc-bromide).
+
+
+    **Acceptance criteria.**
+
+    1. `load_bess_lca_factors(''vanadium_flow'')` returns 17-midpoint factors.
+
+    2. Critical-mineral intensity (metal_depletion) ≥ 50% higher than LFP for vanadium.
+
+    3. Zinc-bromide avoids vanadium but carries higher ecotoxicity.
+
+
+    **Non-goals.** No iron-chromium or iron-air flow variants.
+
+
+    **Files.** `R/storage_lca.R` (append).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:02.055317+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - storage
+  - flow
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Low
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - File `tests/e2e/fixtures/sample_lca_factors.py` exists with `make_vanadium_flow_factors()` and `make_zinc_bromide_factors()` returning dicts with exactly 17 keys each
+  - Test `tests/e2e/test_lca_factors.py::test_vanadium_metal_depletion_exceeds_lfp_by_50_percent` exists and passes
+  - Test `tests/e2e/test_lca_factors.py::test_zinc_bromide_lower_metal_depletion_than_vanadium` exists and passes
+  - '`./verify.sh --full` exits 0'
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406414003721
+  triage_attempts: 1
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3)'
+- id: task-bf86ae07
+  title: '[LCA-COMPUTE] Compute-type → implied storage MWh/MW sizing table'
+  description: '**Problem.** Different AI compute workloads (training vs inference vs batch) have different load profiles → different storage sizing needs to flatten the data-center''s demand on the grid. Wright''s `btm_generation.py` hardcodes 4-hour duration everywhere.
+
+
+    **Deliverable.** `R/compute_sizing.R::compute_storage_sizing(workload_type, load_mw)` returning required storage MWh and MW-hour-rating for grid-integration (not reliability, which is a separate layer).
+
+
+    **Acceptance criteria.**
+
+    1. Workload taxonomy supports ''training'', ''inference'', ''batch'', ''crypto''.
+
+    2. Training → high ramp, implied storage ≥ 0.5 h × load_MW.
+
+    3. Inference → flat, implied storage ~0.1 h × load_MW.
+
+    4. Table documented in roxygen.
+
+
+    **Non-goals.** No actual demand-response modeling. No real-time dispatch.
+
+
+    **Files.** `R/compute_sizing.R` (new), `inst/extdata/workload_storage_sizing.csv` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:04.407822+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - compute
+  - storage
+  - headroom
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406413972980
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-233b6d4f
+  title: '[LCA-BACKUP] Natural-gas peaker LCA module (grid-side, acute + lifecycle)'
+  description: '**Problem.** Wright''s backup module is diesel-only (`diesel_backup.py`); gas CTs appear only in `btm_generation.py` as a BTM scenario, not as a grid-side-firming alternative. For NERC regions where gas is on the margin anyway (SPP, SERC_SE), gas peaker LCA matters for the comparison vs BTM battery.
+
+
+    **Deliverable.** `R/backup_lca.R::backup_lca_natural_gas_peaker(mw, hours)` returning operational + embodied + lifecycle factors across the 17 ReCiPe midpoints. Operational: EPA AP-42 Ch 3.1 (gas turbines).
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 17-midpoint factors + an acute-emissions sub-table (NOx, PM2.5, CO, VOC).
+
+    2. Operational emissions per MWh < diesel Tier II by ≥ 10× for NOx + ≥ 100× for PM2.5.
+
+    3. Documented in `R/backup_lca.R` alongside other backup alternatives.
+
+
+    **Non-goals.** No methane leakage upstream (deferred to EXIOBASE pathway).
+
+
+    **Files.** `R/backup_lca.R` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:06.207720+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - backup
+  - gas
+  - peaker
+  - lca
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400572133544
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-921552c0
+  title: '[LCA-BACKUP] Grid-side BTM-battery-as-backup LCA (vs behind-the-meter)'
+  description: '**Problem.** BTM battery can serve either (a) grid-side firming (reduces hyperscale demand on the grid during peaks) or (b) household reliability. The LCA is identical but the attribution rule differs. Need both scenarios cleanly separable in the model.
+
+
+    **Deliverable.** `R/backup_lca.R::backup_lca_btm_battery(mwh, chemistry, mode)` where mode in c(''grid_firming'', ''household_reliability''). Mode selects the amortization rule (per MWh-cycled vs per MWh-reliable).
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 17-midpoint factors + the attribution mode in the output.
+
+    2. Round-trip test: grid_firming + household_reliability on the same unit sum to 100% of embodied factors.
+
+    3. Documented alongside gas peaker.
+
+
+    **Non-goals.** No two-sided simultaneous attribution (one BESS used for both). That''s a research project in its own right.
+
+
+    **Files.** `R/backup_lca.R` (append).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:08.310769+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - backup
+  - bess
+  - btm
+  - lca
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406414015732
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-d7d83bb8
+  title: '[LCA-BACKUP] Hydrogen fuel-cell backup LCA (Tier IV mandate scenarios)'
+  description: '**Problem.** When a NERC region mandates Tier IV diesel (CAISO, NYISO, ISO-NE), the capital premium pushes some operators toward H2 fuel-cell backup instead. Needs comparable LCA so the Tier IV mandate''s second-order effects (H2 adoption) can be scored.
+
+
+    **Deliverable.** `R/backup_lca.R::backup_lca_hydrogen_fuelcell(mw, hours)` returning operational + embodied + lifecycle factors. Operational uses the H2 chemistry from task 9 (hydrogen storage).
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 17-midpoint factors.
+
+    2. Operational acute emissions near-zero (NOx + PM2.5 at trace levels only).
+
+    3. Embodied factors dominated by PEM fuel-cell platinum + stack.
+
+
+    **Non-goals.** No ammonia-carrier variant.
+
+
+    **Files.** `R/backup_lca.R` (append).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:09.932563+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - backup
+  - hydrogen
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Function backup_lca_hydrogen_fuelcell(mw, hours) exists in R/backup_lca.R
+  - returns list with exactly 17 named numeric LCA factors (operational, embodied, lifecycle)
+  - 'test file tests/test_backup_lca_hydrogen.R verifies: (1) output has 17 factors, (2) operational_nox_kg_mwh ≤ 0.001, (3) operational_pm25_kg_mwh ≤ 0.0001, (4) sum(embodied_factors) > sum(operational_factors)'
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136779755
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=5) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-dbeef5ac
+  title: '[LCA-BACKUP] Pumped-hydro backup LCA where regionally available'
+  description: '**Problem.** PHS can serve as ''backup'' from the data center''s point of view if the operator contracts with the regional PHS fleet for firming capacity. Topography-limited (WECC, SERC_SE, NYISO). Attribution via marginal GHG displaced.
+
+
+    **Deliverable.** `R/backup_lca.R::backup_lca_pumped_hydro(mw, hours, nerc_region)` returning the amortized PHS LCA share for the contracted capacity. Returns NA for NERC regions without PHS feasibility.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 17-midpoint factors for WECC/SERC_SE/NYISO.
+
+    2. Returns NA (with a documented reason) for FRCC + SPP + ERCOT.
+
+    3. Documented in `R/backup_lca.R`.
+
+
+    **Non-goals.** No new-build PHS cost analysis. No reservoir-impact mitigation.
+
+
+    **Files.** `R/backup_lca.R` (append).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:11.669817+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - backup
+  - pumped-hydro
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Low
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Function backup_lca_pumped_hydro(mw, hours, nerc_region) exists in R/backup_lca.R
+  - Function decorated with @export roxygen tag
+  - 'tests/test_backup_lca.R exists with machine-checkable tests: WECC/SERC_SE/NYISO return numeric [10-25] kg-CO2e/kWh; FRCC/SPP/ERCOT return NA'
+  - R/backup_lca.R includes comment documenting NA reason for non-feasible regions
+  - Rscript -e 'testthat::test_file("tests/test_backup_lca.R"); quit(if_any_error=TRUE)' exits 0
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405078912510
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-905b3978
+  title: '[LCA-COMPUTE] Workload taxonomy: training vs inference vs batch (load factor + flex)'
+  description: '**Problem.** Wright''s CCC model treats data-center load as flat 24/7/365. Real AI workloads have very different diurnal + weekly profiles: training is highly flexible (can shift to curtailment hours); inference is near-flat (must-run); batch is batchable. The taxonomy drives the storage-sizing (task 11) and the CCC equity constraint.
+
+
+    **Deliverable.** `R/compute_sizing.R::load_workload_taxonomy()` returning a tibble: workload_type, load_factor_mean, load_factor_p90, flexibility_score (0-1), must_run_hours_per_year. Four rows: training, inference, batch, crypto.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns 4 rows.
+
+    2. flexibility_score: training 0.6, inference 0.05, batch 0.9, crypto 0.1.
+
+    3. Documented from the Masanet 2020 + Andrae 2020 datacenter energy literature.
+
+
+    **Non-goals.** No ML-training-specific GPU workload modeling (that''s a GenX layer concern).
+
+
+    **Files.** `R/compute_sizing.R` (append), `inst/extdata/workload_taxonomy.csv` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:13.543212+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - compute
+  - workload
+  - headroom
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - Function returns 4 rows.
+  - 'flexibility_score: training 0.6, inference 0.05, batch 0.9, crypto 0.1.'
+  - Documented from the Masanet 2020 + Andrae 2020 datacenter energy literature.
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383127780792
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-aaad24c7
+  title: '[LCA-COMPUTE] Workload → storage-MWh/MW ratio × NERC region (couples 11 + 16)'
+  description: '**Problem.** The compute-storage-sizing from task 11 and the workload-taxonomy from task 16 are separable but need to be joined × NERC region, because the implied storage sizing also depends on the grid''s duck-curve shape (CAISO needs more storage per MW of inference load than SERC_SE because its evening ramp is steeper).
+
+
+    **Deliverable.** `R/compute_sizing.R::compute_storage_sizing_by_nerc(workload_type, load_mw, nerc_region)` combining task 11 and task 5 (BTM solar displaced-generation profile) and task 16 (workload taxonomy).
+
+
+    **Acceptance criteria.**
+
+    1. Function returns a scalar MWh storage requirement per (workload, NERC) pair.
+
+    2. CAISO + inference > SERC_SE + inference (duck-curve shape dominates).
+
+    3. Round-trip test locks the ordering across regions.
+
+
+    **Non-goals.** No hourly dispatch — just the required-MWh envelope.
+
+
+    **Files.** `R/compute_sizing.R` (append), `tests/testthat/test-compute-sizing.R` (new).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:15.304060+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - compute
+  - nerc
+  - storage
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400572132353
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-157c7558
+  title: '[CCC-EQUITY] Re-export household_emergy_insecurity() to emburdenlca public API'
+  description: '**Problem.** The combined adequacy+burden metric `household_emergy_insecurity()` lives in `emburdensynth/R/emergy.R:1194` but emburdenlca''s public API doesn''t expose it. CCC''s equity constraint on wright can''t bind on HEII without this.
+
+
+    **Deliverable.** `R/heii_bridge.R::compute_heii_for_ccc(iso3, year, kwh_delivered, kwh_required, spend_usd, income_usd, ...)` — a thin wrapper that calls the emburdensynth function and returns the subset of fields the CCC solver needs (`heii_sej`, `heii_norm`, binding-constraint flag). Re-export via NAMESPACE.
+
+
+    **Acceptance criteria.**
+
+    1. `emburdenlca::compute_heii_for_ccc()` is callable from a fresh R session.
+
+    2. Returns identical `heii_sej` to a direct call to `emburdensynth::household_emergy_insecurity()`.
+
+    3. A test locks the API.
+
+
+    **Non-goals.** No reimplementation — pure delegation.
+
+
+    **Files.** `R/heii_bridge.R` (new), `NAMESPACE` (export).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:16.839595+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - heii
+  - equity
+  - api
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219406413894138
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-6fd47b9a
+  title: '[CCC-EQUITY] Enable + bind HEII in DC-E2C3 equity/constraint_hook.py (wright-side)'
+  description: '**Problem.** Wright''s `src/dc_e2c3/equity/constraint_hook.py:17-70` has two burden-based equity constraints but ships DISABLED (`configs/default.yml:33-36` + `constraints.equity_enabled: false`). HEII is not consulted at all. The CCC binary-search can go to its MW envelope without ever checking HEII.
+
+
+    **Deliverable.** Wright-side change: (a) enable `constraints.equity_enabled: true` in `configs/default.yml`; (b) add `heii_threshold` constraint in `constraint_hook.py` that calls `emburdenlca::compute_heii_for_ccc()` via rpy2 (or a precomputed table) and binds the CCC search; (c) regression test that CCC-MW with equity binding is lower than without, for the Duke-Carolinas 300 MW case.
+
+
+    **Acceptance criteria.**
+
+    1. `equity_enabled: true` in default.yml.
+
+    2. `heii_threshold: 0.5` (fractional) in default.yml as the binding value.
+
+    3. Duke-Carolinas CCC-MW with HEII binding ≤ CCC-MW without.
+
+    4. Regression test in `tests/test_constraint_hook.py` on wright.
+
+
+    **Non-goals.** No new HEII methodology — pure wiring. No change to the HEII threshold value itself (just plumb it).
+
+
+    **Files.** (wright) `src/dc_e2c3/equity/constraint_hook.py`, `configs/default.yml`, `tests/test_constraint_hook.py`. Executed via SSH from a muir ticket owner.'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:18.387265+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - heii
+  - ccc
+  - equity
+  - wright
+  parent: '1219400571756320'
+  priority_level: High
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria: []
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219405079342656
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-fd012517
+  title: '[LCA-INFRA] Full pymrio / EXIOBASE multi-region integration (replace WF+ZA cache-only)'
+  description: '**Problem.** emburdenlca''s EXIOBASE path only supports 2 cached regions (WF = Rest-of-Africa, ZA = South Africa). Every other EXIOBASE region returns via the SSH-to-wright bridge (`global_lca_service.R`). Full pymrio local load would let us cover all 49 EXIOBASE regions without the SSH roundtrip.
+
+
+    **Deliverable.** `R/exiobase_full.R::load_exiobase_region_factors(region_code)` using `reticulate` + the pymrio Python package. Returns the same 5-indicator factor set as the current cache (co2e, nox, so2, pm25, land) + 10 additional indicators (water consumption, water scarcity, metal use, land occupation, etc).
+
+
+    **Acceptance criteria.**
+
+    1. Function returns factors for all 49 EXIOBASE regions.
+
+    2. Round-trip test: WF and ZA factors match the cached values within 1%.
+
+    3. The SSH fallback in `global_lca_service.R` is retired for EXIOBASE queries (USEEIO stays SSH).
+
+
+    **Non-goals.** No multi-region input-output analysis beyond factor extraction. No new EXIOBASE vintage.
+
+
+    **Files.** `R/exiobase_full.R` (new), `R/global_lca_service.R` (deprecation note).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:24.982121+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - infra
+  - exiobase
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Medium
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - File R/exiobase_full.R exists and defines load_exiobase_region_factors(region_code)
+  - 'tests/e2e/test_exiobase_integration.py::test_all_49_regions_load passes: validates factor extraction for all EXIOBASE region codes'
+  - 'tests/e2e/test_exiobase_integration.py::test_wf_za_parity passes: WF/ZA factors match cached reference within 1%'
+  - R/global_lca_service.R SSH fallback code for EXIOBASE removed; deprecation note added to clarify USEEIO still uses SSH
+  - ./verify.sh --full exits 0.
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136429593
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
+- id: task-f091024e
+  title: '[LCA-INFRA] Ecoinvent 3.10 process LCA integration (gate on license landing)'
+  description: '**Problem.** Wright''s `ROADMAP.md` §2D flags ecoinvent as ''Framework ready, data not loaded'' — blocks replacing BESS placeholder factors with validated per-MWh ReCiPe values. License procurement is a separate workstream.
+
+
+    **Deliverable.** When the ecoinvent 3.10 license lands: build an `R/ecoinvent.R` wrapper that reads the ecospold2 XML format and exposes `load_ecoinvent_process(uuid)` returning the 17-midpoint factor set.
+
+
+    **Acceptance criteria.**
+
+    1. Function returns identical cradle-to-gate factors for the LFP-battery process as published Peters et al. 2024.
+
+    2. Documented license requirement in README.
+
+
+    **Non-goals.** No license procurement in this ticket. No full database bundle — process-level reads only.
+
+
+    **Files.** `R/ecoinvent.R` (new), `README.md` (license note).'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:26.786617+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - infra
+  - ecoinvent
+  - lca
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Low
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - R/ecoinvent.R file exists with load_ecoinvent_process(uuid, factors='all') function signature and docstring indicating license requirement
+  - 'Function returns skeleton structure (empty list or mock) with comment documenting expected 17-midpoint ReCiPe factor keys: ''CC'', ''OD'', ''AP'', ''EP_fw'', ''EP_m'', ''EP_t'', ''HT_c'', ''HT_nc'', ''IR'', ''LU'', ''MR_abiotic'', ''MR_fossil'', ''PMF'', ''POF'', ''WD'''
+  - README.md contains section 'LCA Data Requirements' documenting that ecoinvent 3.10 license file must be present at ./data/ecoinvent/license.txt to enable module
+  - README documents Peters et al. 2024 LFP-battery cradle-to-gate validation target (as reference comment in R/ecoinvent.R or README)
+  - ./verify.sh --full exits 0
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219400572164532
+  triage_reason: migrated from self board 2026-10-12; verify R-vs-Python fit before promote
+- id: task-fc765bba
+  title: '[LCA-INFRA] PowerGenome refinement for multi-region GenX accuracy (wright-side)'
+  description: '**Problem.** Wright''s `ROADMAP.md` §3A flags: multi-region GenX cases ''currently simplified from eGRID 2022; refine with PowerGenome for production accuracy''. The 11-region sweep in `data/outputs/full_model/all_regions_all_metrics.csv` uses the simplified fleet.
+
+
+    **Deliverable.** Wright-side: regenerate the 11-region GenX cases using PowerGenome''s full fleet aggregation. Compare marginal-CO2 + marginal-LMP vs the simplified fleet. If delta > 5%, document in the regional_comparison.json manifest and update the INFORMS deck caption.
+
+
+    **Acceptance criteria.**
+
+    1. 11 refined region configs in `src/dc_e2c3/data/powergenome/`.
+
+    2. Marginal-CO2 delta from the current simplified-fleet result reported.
+
+    3. If any region''s delta > 10%, the INFORMS deck slide 7 gains a caption asterisk.
+
+
+    **Non-goals.** No new regions. No chemistry sweep (LFP only).
+
+
+    **Files.** (wright) `src/dc_e2c3/data/powergenome/`. Executed via SSH from a muir ticket owner.'
+  type: feature
+  priority: 5
+  status: todo
+  created_at: '2026-10-11T22:32:28.494087+00:00'
+  source: fleet-cli
+  source_repo: /home/ess/Documents/apps/emburdenlca
+  labels:
+  - infra
+  - genx
+  - grid
+  - wright
+  - auto-redefined
+  parent: '1219400571756320'
+  priority_level: Low
+  asana_assignee: '1337952238455'
+  asana_project_gid: '1209122169114029'
+  acceptance_criteria:
+  - New class `SSHTaskExecutor` in `adapters/ssh/` with async execute() and verify_files() methods
+  - Integration test in tests/e2e/test_ssh_executor.py mocks SSH client and verifies remote file checks pass/fail correctly
+  - genesis.yaml BacklogItem with external_target='ssh://wright' is correctly dispatched to SSHTaskExecutor
+  - ./verify.sh --full exits 0.
+  size: 1
+  state: backlog
+  pm_url: https://app.asana.com/1/1337952238460/project/1218422491565412/task/1219383136778253
+  triage_reason: 'the loop recorded why: task.stalemate -- stalemate -- iterations stopped changing the tree while criteria stayed unmet (iterations=3) (parked after 2 attempts without converging -- needs a human to reconcile the task)'
