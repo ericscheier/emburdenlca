@@ -14,3 +14,6 @@
 **/drafts/
 **/outreach/
 **/*_outreach.md
+
+# Orchestration loop runtime (worktrees, evidence, pids, locks) — never commit
+data/
