@@ -29,8 +29,11 @@ Rscript -e 'devtools::install(upgrade = "never", quiet = TRUE)' \
     || { echo "install failed"; FAIL=1; }
 
 if [[ $FAIL -eq 0 ]]; then
-    step "testthat suite"
-    Rscript -e 'library(testthat); library(emburdenlca); test_check("emburdenlca")' \
+    step "testthat suite (via devtools::test — handles cwd)"
+    # devtools::test() resolves the test directory from the package root
+    # without requiring us to cd into tests/. test_check() does the opposite:
+    # it expects cwd = tests/ and fails silently from the worktree root.
+    Rscript -e 'devtools::test(reporter = "summary", stop_on_failure = TRUE)' \
         || { echo "testthat failures"; FAIL=1; }
 fi
 
